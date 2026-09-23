@@ -1,0 +1,18 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="All tests" type="JUnit" factoryName="JUnit">
+    <module name="arch-labs" />
+    <extension name="coverage">
+      <pattern>
+        <option name="PATTERN" value="ru.archlabs.chat.*" />
+        <option name="ENABLED" value="true" />
+      </pattern>
+    </extension>
+    <option name="PACKAGE_NAME" value="ru.archlabs.chat" />
+    <option name="TEST_OBJECT" value="package" />
+    <option name="VM_PARAMETERS" value="-Djava.io.tmpdir=$PROJECT_DIR$/target" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
