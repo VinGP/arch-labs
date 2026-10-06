@@ -3,6 +3,7 @@ package ru.archlabs.chat;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import ru.archlabs.chat.storage.ChatStorage;
 
 import java.util.ArrayList;
@@ -27,6 +28,17 @@ abstract class ChatServerContractTest {
     @AfterEach
     void tearDown() {
         server.close();
+    }
+
+    @Test
+    void collectsChatMetrics() {
+        server.connect("sender", ignored -> {}).send("hello");
+
+        var names = PrometheusRegistry.defaultRegistry.scrape().stream()
+                .map(metric -> metric.getMetadata().getName()).toList();
+        // Counter names in the registry omit the exported _total suffix.
+        assertTrue(names.contains("chat_requests"));
+        assertTrue(names.contains("chat_notifications"));
     }
 
     @Test

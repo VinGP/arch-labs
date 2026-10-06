@@ -1,5 +1,6 @@
 package ru.archlabs.chat;
 
+import io.prometheus.metrics.core.metrics.Counter;
 import ru.archlabs.chat.storage.ChatStorage;
 
 import java.time.Instant;
@@ -11,6 +12,14 @@ import java.util.function.Consumer;
 
 public final class ChatServerImpl implements ChatServer {
     private final ChatStorage storage;
+    private static final Counter REQUESTS_METRIC = Counter.builder()
+            .name("chat_requests_total")
+            .help("Successfully processed user requests")
+            .register();
+    private static final Counter NOTIFICATIONS_METRIC = Counter.builder()
+            .name("chat_notifications_total")
+            .help("Messages successfully delivered to user callbacks")
+            .register();
     private final Map<String, ActiveSession> activeSessions = new LinkedHashMap<>();
 
     public ChatServerImpl(ChatStorage storage) {
@@ -28,6 +37,7 @@ public final class ChatServerImpl implements ChatServer {
             storage.connect(username, Instant.now());
             var session = new Session(username);
             activeSessions.put(username, new ActiveSession(session, onMessage));
+            REQUESTS_METRIC.inc();
             return session;
         }
     }
@@ -36,9 +46,11 @@ public final class ChatServerImpl implements ChatServer {
     public UserState user(String username) {
         requireText(username, "Username");
         synchronized (this) {
-            return storage
+            var user = storage
                     .user(username)
                     .orElseThrow(() -> new IllegalArgumentException("Unknown user: " + username));
+            REQUESTS_METRIC.inc();
+            return user;
         }
     }
 
@@ -56,10 +68,12 @@ public final class ChatServerImpl implements ChatServer {
                             .filter(Objects::nonNull)
                             .map(ActiveSession::onMessage)
                             .toList();
+            REQUESTS_METRIC.inc();
         }
         for (var recipient : recipients) {
             try {
                 recipient.accept(message);
+                NOTIFICATIONS_METRIC.inc();
             } catch (RuntimeException ignored) {
             }
         }
@@ -69,6 +83,7 @@ public final class ChatServerImpl implements ChatServer {
         synchronized (this) {
             requireActive(session);
             storage.setNotificationsEnabled(session.username, enabled);
+            REQUESTS_METRIC.inc();
         }
     }
 
@@ -79,7 +94,9 @@ public final class ChatServerImpl implements ChatServer {
             if (user.notificationsEnabled()) {
                 throw new IllegalStateException("Disable notifications before requesting history");
             }
-            return storage.history();
+            var messages = storage.history();
+            REQUESTS_METRIC.inc();
+            return messages;
         }
     }
 
@@ -88,6 +105,7 @@ public final class ChatServerImpl implements ChatServer {
             requireActive(session);
             storage.disconnect(session.username, Instant.now());
             activeSessions.remove(session.username);
+            REQUESTS_METRIC.inc();
         }
     }
 
